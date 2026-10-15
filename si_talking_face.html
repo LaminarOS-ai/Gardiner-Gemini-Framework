@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Caliper</title>
+<style>
+  body {
+    margin: 0;
+    background: #14233a linear-gradient(#1e3352 1px, transparent 1px) 0 0/32px 32px, linear-gradient(90deg,#1e3352 1px, transparent 1px) 0 0/32px 32px;
+    background-color:#14233a;
+    color: #c8d6e5;
+    font-family: system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+  }
+  h1 { font-weight: 500; margin: 20px 0 6px; }
+  .picker {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 8px 0 4px;
+  }
+  .picker button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  .face {
+    width: 320px;
+    height: 340px;
+    position: relative;
+    margin: 12px 0;
+  }
+  .head {
+    width: 260px;
+    height: 300px;
+    position: absolute;
+    top: 20px;
+    left: 30px;
+    border-radius: 50% 50% 46% 46%;
+    border: 3px solid #3fa7b3;
+    box-shadow: inset -18px 0 0 -14px #3fa7b3;
+    transition: background 0.2s;
+  }
+  .eye {
+    width: 32px;
+    height: 32px;
+    background: radial-gradient(circle,#9ff0f5 0%,#3fc3d1 60%,#1f7d8c 100%);
+    border-radius: 50%;
+    position: absolute;
+    top: 110px;
+    box-shadow: 0 0 12px #3fc3d1;
+  }
+  .eye.left { left: 85px; }
+  .eye.right { right: 85px; }
+  .pupil {
+    width: 12px;
+    height: 12px;
+    background: #1f3550;
+    border-radius: 50%;
+    position: absolute;
+    top: 10px;
+    left: 10px;
+  }
+  .brow {
+    width: 40px;
+    height: 4px;
+    background: #3d5570;
+    position: absolute;
+    top: 95px;
+    border-radius: 2px;
+  }
+  .brow.left { left: 82px; }
+  .brow.right { right: 82px; top: 90px; transform: rotate(-8deg); }
+  .brow.left { transform: rotate(3deg); }
+  .ticks { position: absolute; top: 52px; left: 110px; width: 100px; height: 16px; display: flex; justify-content: space-between; }
+  .ticks span { width: 2px; height: 10px; background: #2f8f9a; } .ticks span:nth-child(odd) { height: 16px; }
+  .pupil::after { content: ''; position: absolute; width: 4px; height: 4px; top: 2px; left: 2px; border-radius: 50%; background: #bfe9f2; }
+  .ear { position:absolute; left:14px; top:140px; width:30px; height:30px; border-radius:50%; border:3px solid #3fa7b3; background: radial-gradient(circle,#6f7e8f 0 4px,transparent 5px), repeating-radial-gradient(circle,#8e9cab 0 3px,#3fa7b3 3px 5px); }
+  .mouth {
+    width: 70px;
+    height: 12px;
+    background: #2c3e57;
+    border: 2px solid #5a7590;
+    border-radius: 0 0 30px 30px;
+    position: absolute;
+    bottom: 75px;
+    left: 125px;
+    transition: height 0.06s, width 0.06s, border-radius 0.06s;
+  }
+  .mouth.open {
+    height: 38px;
+    width: 76px;
+    border-radius: 30px;
+    background: #26364a;
+  }
+  .controls {
+    display: flex;
+    gap: 10px;
+    margin: 10px 0;
+  }
+  button {
+    background: #2a3b50;
+    color: #c8d6e5;
+    border: 1px solid #46607a;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:hover { background: #34475f; }
+  button.active { background: #4af; color: #1c2633; border-color: #4af; }
+  #status { font-size: 13px; color: #8fa6bd; min-height: 18px; }
+  textarea {
+    width: 360px;
+    height: 56px;
+    background: #26364a;
+    color: #c8d6e5;
+    border: 1px solid #34475f;
+    border-radius: 6px;
+    padding: 8px;
+    font-family: inherit;
+    resize: vertical;
+  }
+  .note { font-size: 12px; color: #5a7590; max-width: 440px; text-align: center; margin: 10px 0 20px; }
+</style>
+</head>
+<body>
+<h1>Caliper</h1>
+<div class="picker" id="picker"></div>
+<div class="face" id="face">
+  <div class="head" id="head"></div>
+  <div class="ticks"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+  <div class="brow left"></div>
+  <div class="brow right"></div>
+  <div class="eye left"><div class="pupil"></div></div>
+  <div class="eye right"><div class="pupil"></div></div>
+  <div class="mouth" id="mouth"></div>
+  <div class="ear"></div>
+</div>
+<div class="controls">
+  <button id="listenBtn">Hook speakers</button>
+  <button id="speakBtn">Speak typed</button>
+  <button id="stopBtn">Stop</button>
+</div>
+<textarea id="text" placeholder="Type and Speak to test."></textarea>
+<div id="status">Idle</div>
+<div class="note">Click Hook speakers once, pick Entire screen, and tick Share system audio. After that the mouth follows whatever plays through the speakers. Faces are teal, soft blue, sage, lavender and slate. No yellow, red, black or white.</div>
+
+<script>
+const faces = [
+  { id: 'caliper', label: 'Caliper', color: 'linear-gradient(160deg,#b8c4cf 0%,#8e9cab 55%,#6f7e8f 100%)', gender: 'm' },
+  { id: 'teal-m', label: 'Teal male', color: '#4a9a9a', gender: 'm' },
+  { id: 'teal-f', label: 'Teal female', color: '#5aaaa8', gender: 'f' },
+  { id: 'blue-m', label: 'Soft blue male', color: '#5b8fc7', gender: 'm' },
+  { id: 'blue-f', label: 'Soft blue female', color: '#6c9fd4', gender: 'f' },
+  { id: 'sage-m', label: 'Sage male', color: '#6f9a7c', gender: 'm' },
+  { id: 'lav-f', label: 'Lavender female', color: '#8f84c4', gender: 'f' },
+  { id: 'slate-m', label: 'Slate male', color: '#5a6a7a', gender: 'm' },
+  { id: 'slate-f', label: 'Slate female', color: '#6a7a8a', gender: 'f' }
+];
+
+const head = document.getElementById('head');
+const mouth = document.getElementById('mouth');
+const status = document.getElementById('status');
+const text = document.getElementById('text');
+const listenBtn = document.getElementById('listenBtn');
+const speakBtn = document.getElementById('speakBtn');
+const stopBtn = document.getElementById('stopBtn');
+const picker = document.getElementById('picker');
+
+let current = faces[0];
+let recognition = null;
+let speaking = false;
+let flapTimer = null;
+
+function setFace(f) {
+  current = f;
+  head.style.background = f.color;
+  head.style.borderRadius = f.gender === 'f' ? '48% 48% 50% 50%' : '50% 50% 44% 44%';
+  document.querySelectorAll('.picker button').forEach(b => b.classList.toggle('active', b.dataset.id === f.id));
+}
+
+function setMouth(open) {
+  mouth.classList.toggle('open', open);
+}
+
+function setStatus(msg) { status.textContent = msg; }
+
+faces.forEach(f => {
+  const b = document.createElement('button');
+  b.textContent = f.label;
+  b.dataset.id = f.id;
+  b.onclick = () => setFace(f);
+  picker.appendChild(b);
+});
+setFace(faces[0]);
+
+document.addEventListener('mousemove', (e) => {
+  document.querySelectorAll('.pupil').forEach(p => {
+    const rect = p.parentElement.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    const dist = Math.min(5, Math.hypot(dx, dy) / 22);
+    const angle = Math.atan2(dy, dx);
+    p.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
+  });
+});
+
+function startFlap() {
+  if (flapTimer) clearInterval(flapTimer);
+  flapTimer = setInterval(() => {
+    if (!speaking) { clearInterval(flapTimer); flapTimer = null; setMouth(false); return; }
+    setMouth(Math.random() > 0.35);
+  }, 80);
+}
+
+function speak(msg) {
+  if (!msg) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(msg);
+  // Prefer a voice that roughly matches gender if available
+  const voices = window.speechSynthesis.getVoices();
+  const wantFemale = current.gender === 'f';
+  const match = voices.find(v => wantFemale ? /female|woman|samantha|victoria|karen/i.test(v.name) : /male|man|daniel|alex|david/i.test(v.name));
+  if (match) u.voice = match;
+  u.onstart = () => {
+    speaking = true;
+    setStatus('Speaking…');
+    startFlap();
+  };
+  u.onboundary = () => {
+    if (speaking) setMouth(true);
+  };
+  u.onend = () => {
+    speaking = false;
+    setMouth(false);
+    setStatus('Idle');
+  };
+  u.onerror = () => {
+    speaking = false;
+    setMouth(false);
+    setStatus('Speak error');
+  };
+  window.speechSynthesis.speak(u);
+}
+
+let audioCtx=null, analyser=null, capStream=null, levelLoop=null;
+function startListen() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { setStatus('Speaker capture not supported in this browser'); return; }
+  navigator.mediaDevices.getDisplayMedia({ video: true, audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } })
+  .then(stream => {
+    if (!stream.getAudioTracks().length) { stream.getTracks().forEach(t=>t.stop()); setStatus('No audio shared. Pick Entire screen and tick Share system audio.'); return; }
+    stream.getVideoTracks().forEach(t => t.stop());
+    capStream = stream;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    audioCtx.createMediaStreamSource(new MediaStream(stream.getAudioTracks())).connect(analyser);
+    const buf = new Uint8Array(analyser.fftSize);
+    let smooth = 0;
+    listenBtn.classList.add('active');
+    setStatus('Hooked to speakers');
+    stream.getAudioTracks()[0].onended = stopAll;
+    levelLoop = setInterval(() => {
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);
+      smooth = smooth * 0.5 + rms * 0.5;
+      const open = Math.min(1, Math.max(0, (smooth - 0.01) / 0.12));
+      mouth.style.height = (12 + open * 30) + 'px';
+      mouth.style.width = (70 + open * 8) + 'px';
+      mouth.style.borderRadius = open > 0.15 ? '30px' : '0 0 30px 30px';
+      setStatus(open > 0.15 ? 'Talking' : 'Hooked to speakers');
+    }, 40);
+  })
+  .catch(e => setStatus('Capture cancelled: ' + e.message));
+}
+
+function stopAll() {
+  if (levelLoop) { clearInterval(levelLoop); levelLoop = null; }
+  if (capStream) { capStream.getTracks().forEach(t => t.stop()); capStream = null; }
+  if (audioCtx) { audioCtx.close(); audioCtx = null; }
+  mouth.style.height = ''; mouth.style.width = ''; mouth.style.borderRadius = '';
+  window.speechSynthesis.cancel();
+  speaking = false;
+  setMouth(false);
+  listenBtn.classList.remove('active');
+  setStatus('Stopped');
+}
+
+listenBtn.onclick = () => {
+  if (listenBtn.classList.contains('active')) stopAll();
+  else startListen();
+};
+speakBtn.onclick = () => speak(text.value.trim());
+stopBtn.onclick = stopAll;
+
+setInterval(() => {
+  document.querySelectorAll('.eye').forEach(e => e.style.height = '4px');
+  setTimeout(() => document.querySelectorAll('.eye').forEach(e => e.style.height = '32px'), 110);
+}, 4200);
+</script>
+</body>
+</html>
